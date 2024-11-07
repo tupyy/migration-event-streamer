@@ -17,37 +17,39 @@ type ElasticSearchEnvConfig struct {
 	Username              string        `envconfig:"ELASTICSEARCH_USERNAME" required:"true"`
 	Password              string        `envconfig:"ELASTICSEARCH_PASSWORD" required:"true"`
 	Address               string        `envconfig:"ELASTICSEARCH_ADDRESS" required:"true"`
-	IndexPrefix           string        `envconfig:"ELASTICSEARCH_INDEX_PREFIX" required:"true"`
-	ConfigIndex           string        `envconfig:"ELASTICSEARCH_CONFIG_INDEX" required:"true"`
+	Index                 string        `envconfig:"ELASTICSEARCH_INDEX" required:"true"`
 	NumWorkers            int           `envconfig:"ELASTICSEARCH_BULK_WORKERS" default:"1"`
 	FlushBytes            int           `envconfig:"ELASTICSEARCH_BULK_FLUSH_BYTES" default:"10000000"`
-	FlushInterval         time.Duration `envconfig:"ELASTICSEARCH_BULK_FLUSH_INTERVAL" default:"120s"`
+	FlushInterval         time.Duration `envconfig:"ELASTICSEARCH_BULK_FLUSH_INTERVAL" default:"30s"`
 	BulkTimeout           time.Duration `envconfig:"ELASTICSEARCH_BULK_TIMEOUT" default:"90s"`
 	ResponseTimeout       time.Duration `envconfig:"ELASTICSEARCH_RESPONSE_TIMEOUT" default:"90s"`
 	DialTimeout           time.Duration `envconfig:"ELASTICSEARCH_DIAL_TIMEOUT" default:"1s"`
 	SSLInsecureSkipVerify bool          `envconfig:"ELASTICSEARCH_SSL_INSECURE_SKIP_VERIFY" default:"true"`
-	DocId                 string        `envconfig:"ELASTICSEARCH_CONFIG_DOC_ID" default:"assisted-migration"`
+	DocIdPrefix           string        `envconfig:"ELASTICSEARCH_CONFIG_DOC_ID_PREFIX" default:"inventory"`
 }
 
-func NewElasticsearchClientFromEnv() (*elastic.Client, error) {
+func GetElasticConfigFromEnv() (ElasticSearchEnvConfig, error) {
 	envConfig, err := getConfigFromEnv[ElasticSearchEnvConfig]()
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse elasticsearch config %w", err)
+		return ElasticSearchEnvConfig{}, fmt.Errorf("failed to parse elasticsearch config %w", err)
 	}
+	return envConfig, nil
+}
 
+func NewElasticsearchClient(config ElasticSearchEnvConfig) (*elastic.Client, error) {
 	addresses := []string{
-		envConfig.Address,
+		config.Address,
 	}
 	cfg := elastic.Config{
 		Addresses: addresses,
-		Username:  envConfig.Username,
-		Password:  envConfig.Password,
+		Username:  config.Username,
+		Password:  config.Password,
 		Transport: &http.Transport{
 			MaxIdleConnsPerHost:   10,
-			ResponseHeaderTimeout: envConfig.ResponseTimeout,
-			DialContext:           (&net.Dialer{Timeout: envConfig.DialTimeout}).DialContext,
+			ResponseHeaderTimeout: config.ResponseTimeout,
+			DialContext:           (&net.Dialer{Timeout: config.DialTimeout}).DialContext,
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: envConfig.SSLInsecureSkipVerify,
+				InsecureSkipVerify: config.SSLInsecureSkipVerify,
 				MinVersion:         tls.VersionTLS11,
 			},
 		},
@@ -70,11 +72,11 @@ func NewElasticsearchClientFromEnv() (*elastic.Client, error) {
 	return client, nil
 }
 
-func getConfigFromEnv[T any]() (*T, error) {
+func getConfigFromEnv[T any]() (T, error) {
 	var envConfig T
 	err := envconfig.Process("", &envConfig)
 	if err != nil {
-		return nil, err
+		return envConfig, err
 	}
-	return &envConfig, nil
+	return envConfig, nil
 }

@@ -7,22 +7,23 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/tupyy/migration-event-streamer/internal/datastore"
 	"github.com/tupyy/migration-event-streamer/internal/datastore/models"
 	"github.com/tupyy/migration-event-streamer/internal/transform"
+	"github.com/tupyy/migration-event-streamer/pkg/datastore"
 	"go.uber.org/zap"
 )
 
-type Elastic struct {
+type Inventory struct {
 	dt          datastore.Datastore
 	readTimeout time.Duration
 }
 
-func NewElastic(dt datastore.Datastore, readTimeout time.Duration) *Elastic {
-	return &Elastic{dt: dt, readTimeout: readTimeout}
+func NewInventory(dt datastore.Datastore, readTimeout time.Duration) *Inventory {
+	return &Inventory{dt: dt, readTimeout: readTimeout}
 }
 
-func (e *Elastic) Run(ctx context.Context) {
+func (e *Inventory) Run(ctx context.Context) {
+	zap.S().Infof("start inserting events every %s", e.readTimeout)
 	for {
 		select {
 		case <-ctx.Done():

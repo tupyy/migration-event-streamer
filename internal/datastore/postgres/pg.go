@@ -19,7 +19,8 @@ func (p *PgDatastore) Read(ctx context.Context) ([]models.Source, error) {
 	m := []models.Source{}
 	tx := p.pgClient.DB().WithContext(ctx).Table("sources").
 		Select("id, inventory").
-		Order("id")
+		Order("id").
+		Where("inventory IS NOT NULL")
 
 	if err := tx.Find(&m).Error; err != nil {
 		return nil, err

@@ -25,17 +25,33 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	_, err = clients.NewElasticsearchClientFromEnv()
+
+	elasticConfig, err := clients.GetElasticConfigFromEnv()
 	if err != nil {
 		panic(err)
 	}
 
-	dt := datastore.NewDatastore(pgConnection, nil)
+	es, err := clients.NewElasticsearchClient(elasticConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	dt, err := datastore.NewDatastore(pgConnection, es, elasticConfig)
+	if err != nil {
+		panic(err)
+	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGQUIT)
 	defer cancel()
 
-	srv := services.NewElastic(dt, 2*time.Second)
+	tickPeriod := 5 * time.Second
+	if tick := os.Getenv("TICK_PERIOD"); tick != "" {
+		if newPeriod, err := time.ParseDuration(tick); err == nil {
+			tickPeriod = newPeriod
+		}
+	}
+
+	srv := services.NewInventory(dt, tickPeriod)
 	go srv.Run(ctx)
 
 	<-ctx.Done()
