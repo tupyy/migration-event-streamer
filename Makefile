@@ -10,4 +10,8 @@ build:
 run:
 	@env $(cat $(PWD)/.env | xargs) bin/streamer
 
+build.podman:
+	@podman build . -t quay.io/ctupangiu/migration-event-streamer:latest
+	@podman push quay.io/ctupangiu/migration-event-streamer:latest
+
 .PHONY: vendor build run
